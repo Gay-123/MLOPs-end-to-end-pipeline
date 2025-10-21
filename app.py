@@ -1,50 +1,56 @@
 import streamlit as st
-import joblib
 import pandas as pd
+import joblib
 
-# Load model and encoders
-model = joblib.load("model/svm_best_model_1.pkl")
-le_loyalty = joblib.load("model/le_loyalty.pkl")
-le_location = joblib.load("model/le_location.pkl")
-le_payment = joblib.load("model/le_payment.pkl")
-le_device = joblib.load("model/le_device.pkl")
+# Load model and scaler from the model folder
+model = joblib.load("model/fraud_model.pkl")
+scaler = joblib.load("model/scaler.pkl")
 
-st.title("💳 Credit Card Fraud Detection App")
-st.write("Enter transaction details below to check if it's Fraudulent or Not 👇")
+# Streamlit page setup
+st.set_page_config(page_title="Real-Time Fraud Detection", layout="centered")
+st.title("🔍 Real-Time Fraud Detection")
+st.write("Enter transaction details below to assess fraud risk:")
 
-# Input fields
-customer_age = st.number_input("Customer Age", min_value=18, max_value=100, value=30)
-loyalty_tier = st.selectbox("Customer Loyalty Tier", ["Bronze", "Silver", "Gold", "Platinum"])
-location = st.selectbox("Location", ["New York", "San Francisco", "Chicago", "Los Angeles"])
-purchase_amount = st.number_input("Purchase Amount ($)", min_value=1.0, value=150.0)
-payment_method = st.selectbox("Payment Method", ["Credit Card", "Debit Card", "Mobile Payment", "Cash"])
-device_type = st.selectbox("Device Type", ["Mobile", "Desktop", "Tablet"])
-footfall_count = st.number_input("Footfall Count", min_value=0, value=200)
-transaction_hour = st.slider("Transaction Hour (24-hour format)", 0, 23, 14)
+# Transaction input form
+with st.form("transaction_form"):
+    amount = st.number_input("Transaction Amount", min_value=0.0)
+    transaction_type = st.selectbox("Transaction Type", ["debit", "credit"])
+    weekday = st.selectbox("Weekday", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
+    hour = st.slider("Hour", 0, 23)
+    minute = st.slider("Minute", 0, 59)
+    second = st.slider("Second", 0, 59)
+    time_since_last_transaction = st.number_input("Time Since Last Transaction (seconds)", min_value=0.0)
+    spending_deviation_score = st.slider("Spending Deviation Score", 0.0, 1.0, 0.5)
+    velocity_score = st.slider("Velocity Score", 0.0, 1.0, 0.5)
+    geo_anomaly_score = st.slider("Geo Anomaly Score", 0.0, 1.0, 0.5)
 
-if st.button("Predict Fraud"):
-    # Encode categorical features
-    loyalty_enc = le_loyalty.transform([loyalty_tier])[0]
-    location_enc = le_location.transform([location])[0]
-    payment_enc = le_payment.transform([payment_method])[0]
-    device_enc = le_device.transform([device_type])[0]
+    submitted = st.form_submit_button("Predict Fraud Risk")
 
-    # Prepare data
-    input_data = pd.DataFrame({
-        "Customer_Age": [customer_age],
-        "Customer_Loyalty_Tier": [loyalty_enc],
-        "Location": [location_enc],
-        "Purchase_Amount": [purchase_amount],
-        "Payment_Method": [payment_enc],
-        "Device_Type": [device_enc],
-        "Footfall_Count": [footfall_count],
-        "Transaction_Hour": [transaction_hour]
-    })
+# Map weekday to numeric
+weekday_map = {"Monday":0, "Tuesday":1, "Wednesday":2, "Thursday":3, "Friday":4, "Saturday":5, "Sunday":6}
+weekday_val = weekday_map[weekday]
+
+# Predict if form is submitted
+if submitted:
+    input_data = pd.DataFrame([{
+        "amount": amount,
+        "hour": hour,
+        "minute": minute,
+        "second": second,
+        "weekday": weekday_val,
+        "time_since_last_transaction": time_since_last_transaction,
+        "spending_deviation_score": spending_deviation_score,
+        "velocity_score": velocity_score,
+        "geo_anomaly_score": geo_anomaly_score,
+        "transaction_type_credit": 1 if transaction_type == "credit" else 0  # one-hot encoded
+    }])
+
+    # Scale input
+    input_scaled = scaler.transform(input_data)
 
     # Predict
-    prediction = model.predict(input_data)[0]
+    prob = model.predict_proba(input_scaled)[0][1]
+    label = "⚠️ FRAUD" if prob > 0.5 else "✅ Legit"
 
-    if prediction == 1:
-        st.error("🚨 Transaction is FRAUDULENT!")
-    else:
-        st.success("✅ Transaction is LEGITIMATE.")
+    st.metric(label="Fraud Risk Score", value=f"{prob:.3f}")
+    st.success(label)
