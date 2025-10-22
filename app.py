@@ -46,6 +46,9 @@ X[0, 5] = channel_code / 2.0
 # -------- Estimate threshold once --------
 @st.cache_resource
 @st.cache_resource
+# -------------------------------------------------------
+# Function to estimate threshold (no caching at all)
+# -------------------------------------------------------
 def estimate_threshold(model, dim, n=120, noise_scale=1e-3):
     base = np.zeros((n, dim))
     noise = np.random.normal(loc=0.0, scale=noise_scale, size=(n, dim))
@@ -54,9 +57,12 @@ def estimate_threshold(model, dim, n=120, noise_scale=1e-3):
     errs = np.mean(np.square(samples - preds), axis=1)
     mu = float(np.mean(errs))
     sigma = float(np.std(errs))
-    return mu, sigma, mu + 3.0 * sigma
+    threshold = mu + 3.0 * sigma
+    return mu, sigma, threshold
 
+# Call it normally — no cache, no underscore, no decorator
 mu_base, sigma_base, threshold = estimate_threshold(model, num_features)
+
 
 
 # -------- Predict only when button clicked --------
