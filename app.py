@@ -49,7 +49,7 @@ X[0, 5] = channel_code / 2.0
 # -------------------------------------------------------
 # Function to estimate threshold (no caching at all)
 # -------------------------------------------------------
-def estimate_threshold(model, dim, n=120, noise_scale=1e-3):
+def estimate_threshold(_model, dim, n=120, noise_scale=1e-3):
     base = np.zeros((n, dim))
     noise = np.random.normal(loc=0.0, scale=noise_scale, size=(n, dim))
     samples = base + noise
