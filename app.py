@@ -5,7 +5,7 @@ import numpy as np
 from tensorflow.keras.models import load_model
 
 # Load your trained autoencoder
-model = load_model("autoencoder_model.keras")
+model = load_model("model/autoencoder_model.keras")
 
 st.title("Autoencoder Demo")
 st.write("Upload your CSV data to see the autoencoder reconstruction results.")
