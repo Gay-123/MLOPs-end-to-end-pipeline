@@ -1,0 +1,19 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fraud-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fraud-app
+  template:
+    metadata:
+      labels:
+        app: fraud-app
+    spec:
+      containers:
+      - name: fraud-app
+        image: fraudmlopsacr.azurecr.io/fraudapp:latest
+        ports:
+        - containerPort: 8501

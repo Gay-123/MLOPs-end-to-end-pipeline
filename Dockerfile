@@ -1,17 +1,16 @@
-# Step 1: Base image
-FROM python:3.10-slim
-
-# Step 2: Set working directory
+FROM python:3.12-slim
 WORKDIR /app
 
-# Step 3: Copy files
-COPY . /app
+COPY requirements.txt .
 
-# Step 4: Install dependencies
+RUN pip install --upgrade pip
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Step 5: Expose Streamlit port
+COPY . .
+
 EXPOSE 8501
 
-# Step 6: Run the app
-CMD ["streamlit", "run", "app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+ENV STREAMLIT_SERVER_HEADLESS=true
+ENV STREAMLIT_SERVER_PORT=8501
+
+CMD ["streamlit", "run", "app.py"]
