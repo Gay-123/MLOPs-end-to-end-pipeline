@@ -45,6 +45,7 @@ X[0, 5] = channel_code / 2.0
 
 # -------- Estimate threshold once --------
 @st.cache_resource
+@st.cache_resource
 def estimate_threshold(model, dim, n=120, noise_scale=1e-3):
     base = np.zeros((n, dim))
     noise = np.random.normal(loc=0.0, scale=noise_scale, size=(n, dim))
@@ -56,6 +57,7 @@ def estimate_threshold(model, dim, n=120, noise_scale=1e-3):
     return mu, sigma, mu + 3.0 * sigma
 
 mu_base, sigma_base, threshold = estimate_threshold(model, num_features)
+
 
 # -------- Predict only when button clicked --------
 if st.button("Check Transaction"):
