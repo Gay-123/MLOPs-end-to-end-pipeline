@@ -1,48 +1,43 @@
-# streamlit_credit_fraud.py
+# streamlit_app.py
 import streamlit as st
-import pandas as pd
 import numpy as np
 from tensorflow.keras.models import load_model
+import pickle
 
-# Load your trained autoencoder for fraud detection
+# Load trained autoencoder
 model = load_model("model/autoencoder_model.keras")
 
-st.title("Credit Card Fraud Detection using Autoencoder")
-st.write("Upload your CSV file containing transaction data. The model will reconstruct normal transactions and flag anomalies based on reconstruction error.")
+# Load training data used for threshold calculation
+# This should be the same X_train you used to train the autoencoder
+with open("model/X_train.pkl", "rb") as f:
+    X_train = pickle.load(f)
 
-# File uploader
-uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
+# Automatically calculate threshold from training data
+reconstruction_errors = np.mean(np.square(X_train - model.predict(X_train)), axis=1)
+threshold = np.mean(reconstruction_errors) + 3 * np.std(reconstruction_errors)
 
-if uploaded_file is not None:
-    # Read CSV
-    data = pd.read_csv(uploaded_file)
-    st.write("Uploaded Data (first 5 rows):")
-    st.dataframe(data.head())
+st.title("Credit Card Fraud Detection")
+st.write("Enter transaction details to detect potential fraud:")
 
-    # Ensure only numeric features are used
-    X = data.select_dtypes(include=[np.number]).values
+# Collect inputs from user
+amount = st.number_input("Transaction Amount", min_value=0.0, value=100.0)
+time_since_last = st.number_input("Time Since Last Transaction (seconds)", min_value=0.0, value=3600.0)
+spending_deviation = st.number_input("Spending Deviation Score", min_value=0.0, value=0.5)
+velocity_score = st.number_input("Velocity Score", min_value=0.0, value=0.3)
+geo_anomaly = st.number_input("Geo Anomaly Score", min_value=0.0, value=0.1)
 
-    # Check feature count
-    if X.shape[1] != model.input_shape[1]:
-        st.error(f"Your data must have {model.input_shape[1]} features! Currently it has {X.shape[1]} features.")
-    else:
-        # Reconstruct data using autoencoder
-        reconstructed = model.predict(X)
+# Prepare input array
+X_input = np.array([[amount, time_since_last, spending_deviation, velocity_score, geo_anomaly]])
 
-        # Calculate reconstruction error
-        reconstruction_error = np.mean(np.square(X - reconstructed), axis=1)
+# Predict / reconstruct
+reconstructed = model.predict(X_input)
+reconstruction_error = np.mean(np.square(X_input - reconstructed))
 
-        # Set threshold for anomaly (you can adjust based on training)
-        threshold = np.percentile(reconstruction_error, 95)  # top 5% errors considered fraud
-        is_fraud = reconstruction_error > threshold
+st.write(f"Reconstruction Error: {reconstruction_error:.5f}")
+st.write(f"Threshold (calculated from training data): {threshold:.5f}")
 
-        st.write("Reconstruction Error (first 10 rows):")
-        st.dataframe(pd.DataFrame(reconstruction_error, columns=["Reconstruction Error"]).head(10))
-
-        st.write("Fraud Detection (first 10 rows):")
-        st.dataframe(pd.DataFrame(is_fraud, columns=["Is Fraud"]).head(10))
-
-        st.line_chart(reconstruction_error)
-
-        st.write(f"Threshold used for fraud detection: {threshold:.4f}")
-        st.write(f"Number of transactions flagged as fraud: {np.sum(is_fraud)}")
+# Determine fraud or not
+if reconstruction_error > threshold:
+    st.error("⚠️ This transaction is likely FRAUDULENT!")
+else:
+    st.success("✅ This transaction looks NORMAL.")
