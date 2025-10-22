@@ -2,42 +2,41 @@
 import streamlit as st
 import numpy as np
 from tensorflow.keras.models import load_model
-import pickle
 
-# Load trained autoencoder
+# Load the trained autoencoder model
 model = load_model("model/autoencoder_model.keras")
 
-# Load training data used for threshold calculation
-# This should be the same X_train you used to train the autoencoder
-with open("model/X_train.pkl", "rb") as f:
-    X_train = pickle.load(f)
-
-# Automatically calculate threshold from training data
-reconstruction_errors = np.mean(np.square(X_train - model.predict(X_train)), axis=1)
-threshold = np.mean(reconstruction_errors) + 3 * np.std(reconstruction_errors)
-
 st.title("Credit Card Fraud Detection")
-st.write("Enter transaction details to detect potential fraud:")
+st.write("Enter the transaction details below and detect potential fraud.")
 
-# Collect inputs from user
+# Human-friendly transaction inputs
 amount = st.number_input("Transaction Amount", min_value=0.0, value=100.0)
-time_since_last = st.number_input("Time Since Last Transaction (seconds)", min_value=0.0, value=3600.0)
-spending_deviation = st.number_input("Spending Deviation Score", min_value=0.0, value=0.5)
-velocity_score = st.number_input("Velocity Score", min_value=0.0, value=0.3)
-geo_anomaly = st.number_input("Geo Anomaly Score", min_value=0.0, value=0.1)
+time_since_last = st.number_input("Time Since Last Transaction (hours)", min_value=0.0, value=24.0)
 
-# Prepare input array
-X_input = np.array([[amount, time_since_last, spending_deviation, velocity_score, geo_anomaly]])
+# Optional info for location and merchant type (not used by model here, just for display)
+location = st.text_input("Transaction Location", value="CityX")
+merchant_type = st.text_input("Merchant Type", value="Retail")
 
-# Predict / reconstruct
+# --- Feature engineering for model input ---
+# These are derived features your autoencoder expects
+# In a real scenario, these would be computed from user history
+spending_deviation_score = 0.5  # default placeholder
+velocity_score = 0.3            # default placeholder
+geo_anomaly_score = 0.2         # default placeholder
+
+# Combine into array for model
+X_input = np.array([[amount, time_since_last, spending_deviation_score,
+                     velocity_score, geo_anomaly_score]])
+
+# Predict reconstruction
 reconstructed = model.predict(X_input)
 reconstruction_error = np.mean(np.square(X_input - reconstructed))
 
-st.write(f"Reconstruction Error: {reconstruction_error:.5f}")
-st.write(f"Threshold (calculated from training data): {threshold:.5f}")
+st.write(f"Reconstruction Error: {reconstruction_error:.4f}")
 
-# Determine fraud or not
+# Decide fraud or not
+threshold = 0.02  # tune this based on training data
 if reconstruction_error > threshold:
-    st.error("⚠️ This transaction is likely FRAUDULENT!")
+    st.error("⚠️ This transaction might be FRAUDULENT!")
 else:
-    st.success("✅ This transaction looks NORMAL.")
+    st.success("✅ This transaction seems normal.")
