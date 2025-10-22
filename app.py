@@ -1,56 +1,38 @@
+# streamlit_app.py
 import streamlit as st
 import pandas as pd
-import joblib
+import numpy as np
+from tensorflow.keras.models import load_model
 
-# Load model and scaler from the model folder
-model = joblib.load("model/fraud_model.pkl")
-scaler = joblib.load("model/scaler.pkl")
+# Load your trained autoencoder
+model = load_model("autoencoder_model.keras")
 
-# Streamlit page setup
-st.set_page_config(page_title="Real-Time Fraud Detection", layout="centered")
-st.title("🔍 Real-Time Fraud Detection")
-st.write("Enter transaction details below to assess fraud risk:")
+st.title("Autoencoder Demo")
+st.write("Upload your CSV data to see the autoencoder reconstruction results.")
 
-# Transaction input form
-with st.form("transaction_form"):
-    amount = st.number_input("Transaction Amount", min_value=0.0)
-    transaction_type = st.selectbox("Transaction Type", ["debit", "credit"])
-    weekday = st.selectbox("Weekday", ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
-    hour = st.slider("Hour", 0, 23)
-    minute = st.slider("Minute", 0, 59)
-    second = st.slider("Second", 0, 59)
-    time_since_last_transaction = st.number_input("Time Since Last Transaction (seconds)", min_value=0.0)
-    spending_deviation_score = st.slider("Spending Deviation Score", 0.0, 1.0, 0.5)
-    velocity_score = st.slider("Velocity Score", 0.0, 1.0, 0.5)
-    geo_anomaly_score = st.slider("Geo Anomaly Score", 0.0, 1.0, 0.5)
+# File uploader
+uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
 
-    submitted = st.form_submit_button("Predict Fraud Risk")
+if uploaded_file is not None:
+    # Read CSV
+    data = pd.read_csv(uploaded_file)
+    st.write("Original Data:")
+    st.dataframe(data.head())
 
-# Map weekday to numeric
-weekday_map = {"Monday":0, "Tuesday":1, "Wednesday":2, "Thursday":3, "Friday":4, "Saturday":5, "Sunday":6}
-weekday_val = weekday_map[weekday]
+    # Make sure the data is numeric
+    X = data.select_dtypes(include=[np.number]).values
 
-# Predict if form is submitted
-if submitted:
-    input_data = pd.DataFrame([{
-        "amount": amount,
-        "hour": hour,
-        "minute": minute,
-        "second": second,
-        "weekday": weekday_val,
-        "time_since_last_transaction": time_since_last_transaction,
-        "spending_deviation_score": spending_deviation_score,
-        "velocity_score": velocity_score,
-        "geo_anomaly_score": geo_anomaly_score,
-        "transaction_type_credit": 1 if transaction_type == "credit" else 0  # one-hot encoded
-    }])
+    if X.shape[1] != model.input_shape[1]:
+        st.error(f"Your data must have {model.input_shape[1]} features!")
+    else:
+        # Predict / reconstruct
+        reconstructed = model.predict(X)
+        reconstruction_error = np.mean(np.square(X - reconstructed), axis=1)
 
-    # Scale input
-    input_scaled = scaler.transform(input_data)
+        st.write("Reconstructed Data (first 5 rows):")
+        st.dataframe(pd.DataFrame(reconstructed, columns=data.columns).head())
 
-    # Predict
-    prob = model.predict_proba(input_scaled)[0][1]
-    label = "⚠️ FRAUD" if prob > 0.5 else "✅ Legit"
+        st.write("Reconstruction Error (first 10 rows):")
+        st.dataframe(pd.DataFrame(reconstruction_error, columns=["Reconstruction Error"]).head(10))
 
-    st.metric(label="Fraud Risk Score", value=f"{prob:.3f}")
-    st.success(label)
+        st.line_chart(reconstruction_error)
