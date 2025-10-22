@@ -5,7 +5,7 @@ from tensorflow.keras.models import load_model
 import math
 from datetime import datetime
 
-# Load the trained model
+# Load the trained autoencoder model
 model = load_model("model/autoencoder_model.keras")
 
 st.set_page_config(page_title="Fraud Detector", layout="centered")
@@ -20,7 +20,7 @@ time_val = st.time_input("Transaction Time", value=datetime.now().time())
 city = st.text_input("City", value="Chennai")
 payment_channel = st.selectbox("Payment Channel", ["Online", "Cash/CreditCard", "Bank Transfer"])
 
-# -------- Build full feature vector (29 features expected) --------
+# -------- Build feature vector --------
 num_features = model.input_shape[1]
 X = np.zeros((1, num_features), dtype=float)
 
@@ -43,30 +43,22 @@ X[0, 3] = (city_code % 10) / 10.0
 X[0, 4] = (merchant_code % 10) / 10.0
 X[0, 5] = channel_code / 2.0
 
-# -------- Estimate threshold once --------
-@st.cache_resource
-@st.cache_resource
-# -------------------------------------------------------
-# Function to estimate threshold (no caching at all)
-# -------------------------------------------------------
+# -------- Threshold estimation function --------
 def estimate_threshold(_model, dim, n=120, noise_scale=1e-3):
     base = np.zeros((n, dim))
     noise = np.random.normal(loc=0.0, scale=noise_scale, size=(n, dim))
     samples = base + noise
-    preds = model.predict(samples)
+    preds = _model.predict(samples)
     errs = np.mean(np.square(samples - preds), axis=1)
     mu = float(np.mean(errs))
     sigma = float(np.std(errs))
     threshold = mu + 3.0 * sigma
     return mu, sigma, threshold
 
-# Call it normally — no cache, no underscore, no decorator
-mu_base, sigma_base, threshold = estimate_threshold(model, num_features)
-
-
-
 # -------- Predict only when button clicked --------
 if st.button("Check Transaction"):
+    mu_base, sigma_base, threshold = estimate_threshold(model, num_features)
+
     reconstructed = model.predict(X)
     recon_error = float(np.mean(np.square(X - reconstructed)))
     is_fraud = recon_error > threshold
