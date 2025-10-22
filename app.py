@@ -5,56 +5,46 @@ from tensorflow.keras.models import load_model
 import math
 from datetime import datetime
 
-# ------------- Load model -------------
+# Load the trained model
 model = load_model("model/autoencoder_model.keras")
 
 st.set_page_config(page_title="Fraud Detector", layout="centered")
-st.title("Credit Card Fraud Detection")
+st.title("💳 Credit Card Fraud Detection")
 
-st.write("Enter transaction details (only these): amount, time, date, city, payment channel.")
+st.write("Enter transaction details and click **Check Transaction** to predict fraud status.")
 
-# ------------- User inputs (minimal) -------------
+# -------- User inputs --------
 amount = st.number_input("Transaction Amount", min_value=0.0, value=500.0, step=10.0, format="%.2f")
 date_val = st.date_input("Transaction Date", value=datetime.now().date())
 time_val = st.time_input("Transaction Time", value=datetime.now().time())
 city = st.text_input("City", value="Chennai")
 payment_channel = st.selectbox("Payment Channel", ["Online", "Cash/CreditCard", "Bank Transfer"])
 
-# ------------- Build full feature vector (29 dims expected) -------------
-num_features = model.input_shape[1]  # expected input dimension (e.g., 29)
+# -------- Build full feature vector (29 features expected) --------
+num_features = model.input_shape[1]
 X = np.zeros((1, num_features), dtype=float)
 
-# Heuristic feature engineering from the minimal inputs:
-# 1) amount_log: reduce skew
+# Heuristic feature setup
 amount_log = math.log1p(float(amount))
-# 2) hour_of_day and day_of_week from date+time
 dt = datetime.combine(date_val, time_val)
 hour = dt.hour + dt.minute / 60.0
-hour_norm = hour / 24.0  # 0..1
-day_of_week = dt.weekday()  # 0..6
+hour_norm = hour / 24.0
+day_of_week = dt.weekday()
 dow_norm = day_of_week / 6.0
-
-# 3) simple encodings for city and payment channel (deterministic small values)
-city_code = sum(ord(c) for c in city[:10]) % 100   # 0-99
-merchant_code = (city_code * 7 + 13) % 100         # pseudo merchant code derived from city
+city_code = sum(ord(c) for c in city[:10]) % 100
+merchant_code = (city_code * 7 + 13) % 100
 channel_map = {"Online": 2, "Cash/CreditCard": 1, "Bank Transfer": 0}
 channel_code = channel_map.get(payment_channel, 0)
 
-# Place the engineered features into the first few indices (consistent heuristic)
-# NOTE: model was trained on 29 features; we don't know their exact meaning here,
-# so we put sensible scaled values into first slots and zero elsewhere.
-X[0, 0] = amount_log / 10.0        # scaled log amount
-X[0, 1] = hour_norm                # normalized hour
-X[0, 2] = dow_norm                 # normalized day-of-week
-X[0, 3] = (city_code % 10) / 10.0  # small digit from city
+X[0, 0] = amount_log / 10.0
+X[0, 1] = hour_norm
+X[0, 2] = dow_norm
+X[0, 3] = (city_code % 10) / 10.0
 X[0, 4] = (merchant_code % 10) / 10.0
-X[0, 5] = channel_code / 2.0       # 0..1
+X[0, 5] = channel_code / 2.0
 
-# The rest remain zeros (silent/default features)
-# ------------------------------------------------
-
-# ------------- Estimate baseline threshold from the model (no scaler required) -------------
-# Create small noise samples around a neutral vector to estimate model's "normal" reconstruction error
+# -------- Estimate threshold once --------
+@st.cache_resource
 def estimate_threshold(model, dim, n=120, noise_scale=1e-3):
     base = np.zeros((n, dim))
     noise = np.random.normal(loc=0.0, scale=noise_scale, size=(n, dim))
@@ -63,28 +53,30 @@ def estimate_threshold(model, dim, n=120, noise_scale=1e-3):
     errs = np.mean(np.square(samples - preds), axis=1)
     mu = float(np.mean(errs))
     sigma = float(np.std(errs))
-    thresh = mu + 3.0 * sigma
-    return mu, sigma, thresh
+    return mu, sigma, mu + 3.0 * sigma
 
-with st.spinner("Preparing model baseline..."):
-    mu_base, sigma_base, threshold = estimate_threshold(model, num_features, n=120, noise_scale=1e-3)
+mu_base, sigma_base, threshold = estimate_threshold(model, num_features)
 
-# ------------- Predict and decide -------------
-reconstructed = model.predict(X)
-recon_error = float(np.mean(np.square(X - reconstructed)))
+# -------- Predict only when button clicked --------
+if st.button("Check Transaction"):
+    reconstructed = model.predict(X)
+    recon_error = float(np.mean(np.square(X - reconstructed)))
+    is_fraud = recon_error > threshold
 
-# Decide: FRAUD or NOT FRAUD
-is_fraud = recon_error > threshold
+    if is_fraud:
+        st.markdown("<h2 style='color:#ff4b4b'>🚨 FRAUD DETECTED!</h2>", unsafe_allow_html=True)
+    else:
+        st.markdown("<h2 style='color:#22c55e'>✅ Not Fraudulent</h2>", unsafe_allow_html=True)
 
-# ------------- Output (only FRAUD / NOT FRAUD as requested) -------------
-st.write("")  # spacing
-if is_fraud:
-    st.markdown("<h1 style='color:#ff4b4b'>FRAUD</h1>", unsafe_allow_html=True)
+    with st.expander("Show Details"):
+        st.write(f"Reconstruction Error: `{recon_error:.6f}`")
+        st.write(f"Auto Threshold: `{threshold:.6f}`")
+        st.json({
+            "Amount": amount,
+            "Date": str(date_val),
+            "Time": str(time_val),
+            "City": city,
+            "Payment Channel": payment_channel
+        })
 else:
-    st.markdown("<h1 style='color:#22c55e'>NOT FRAUD</h1>", unsafe_allow_html=True)
-
-# Small debug info (hidden by default, but helpful). Show only if user wants to inspect.
-if st.checkbox("Show debug info (reconstruction error & threshold)"):
-    st.write(f"Reconstruction error: `{recon_error:.6f}`")
-    st.write(f"Auto-estimated threshold (mean+3σ): `{threshold:.6f}`")
-    st.write(f"Baseline mean ± std: `{mu_base:.6f} ± {sigma_base:.6f}`")
+    st.info("➡️ Fill the details and click **Check Transaction** to get prediction.")
