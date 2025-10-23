@@ -37,4 +37,5 @@ variable "vm_size" {
 variable "dns_prefix" {
   description = "DNS prefix for AKS"
   type        = string
-  default     = "mlopsdns2025"  
+  default     = "mlopsdns2025" 
+  } 
