@@ -10,17 +10,17 @@ env:
   ACR_NAME: mlopsacr
   RESOURCE_GROUP: mlops-rg
   AKS_NAME: fraud-mlops-aks
-  TF_DIR: infrastructure 
+  TF_DIR: infrastructure
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout repo
+    - name: Checkout repository
       uses: actions/checkout@v3
 
-    #Azure Login
+    # --- Azure Login ---
     - name: Login to Azure
       uses: azure/login@v1
       with:
@@ -29,7 +29,7 @@ jobs:
         subscription-id: ${{ secrets.ARM_SUBSCRIPTION_ID }}
         client-secret: ${{ secrets.ARM_CLIENT_SECRET }}
 
-    #Terraform Init & Apply
+    # --- Terraform Init & Apply ---
     - name: Set up Terraform
       uses: hashicorp/setup-terraform@v2
       with:
@@ -43,22 +43,31 @@ jobs:
       working-directory: ${{ env.TF_DIR }}
       run: terraform apply -auto-approve
 
-    # ACR Build & Push
+    # --- Build & Push Docker Image to ACR ---
     - name: Azure ACR Login
       run: az acr login --name ${{ env.ACR_NAME }}
 
     - name: Build Docker Image
       run: docker build -t ${{ env.IMAGE_NAME }} .
 
-    - name: Tag Docker Image for ACR
+    - name: Tag Docker Image
       run: docker tag ${{ env.IMAGE_NAME }} ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
 
-    - name: Push Docker Image to ACR
+    - name: Push Docker Image
       run: docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
 
-    # AKS Deployment
+    # --- Deploy to AKS ---
     - name: Get AKS credentials
-      run: az aks get-credentials --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.AKS_NAME }}
+      run: az aks get-credentials --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.AKS_NAME }} --overwrite-existing
 
-    - name: Deploy to AKS
-      run: kubectl apply -f k8s/deployment.yaml
+    - name: Update image in K8s manifest
+      run: |
+        sed -i "s|image: .*|image: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest|" k8s/deployment.yaml
+
+    - name: Deploy Kubernetes manifests
+      run: |
+        kubectl apply -f k8s/deployment.yaml
+        kubectl apply -f k8s/service.yaml
+
+    - name: Verify Deployment
+      run: kubectl get pods -o wide

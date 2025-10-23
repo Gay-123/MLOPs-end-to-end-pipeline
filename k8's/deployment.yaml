@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
       - name: creditcardfraud-app
-        image: mlopspipelineacr01.azurecr.io/mlops-pipeline:latest
+        image: mlopsacr.azurecr.io/mlops-pipeline:latest   # Updated dynamically in workflow
         ports:
         - containerPort: 8501
