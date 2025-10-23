@@ -1,40 +1,39 @@
+# main.tf
 provider "azurerm" {
   features {}
 }
 
-# Resource group
+# Resource Group
 resource "azurerm_resource_group" "rg" {
-  name     = "mlops-rg"
-  location = "East US"
+  name     = var.resource_group_name
+  location = var.location
 }
 
 # Azure Container Registry
 resource "azurerm_container_registry" "acr" {
-  name                = "mlopsacr"
+  name                = var.acr_name
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   sku                 = "Basic"
   admin_enabled       = true
 }
 
-# AKS cluster
+# AKS Cluster
 resource "azurerm_kubernetes_cluster" "aks" {
-  name                = "fraud-mlops-aks"
+  name                = var.aks_name
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  dns_prefix          = "mlops"
+  dns_prefix          = var.dns_prefix
 
   default_node_pool {
     name       = "default"
-    node_count = 1
-    vm_size    = "Standard_B2s"
+    node_count = var.node_count
+    vm_size    = var.vm_size
   }
 
   identity {
     type = "SystemAssigned"
   }
-}
 
-output "acr_login_server" {
-  value = azurerm_container_registry.acr.login_server
+  depends_on = [azurerm_container_registry.acr]
 }

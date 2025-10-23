@@ -1,19 +1,19 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: fraud-app
+  name: creditcardfraud-app
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: fraud-app
+      app: creditcardfraud-app
   template:
     metadata:
       labels:
-        app: fraud-app
+        app: creditcardfraud-app
     spec:
       containers:
-      - name: fraud-app
-        image: fraudmlopsacr.azurecr.io/fraudapp:latest
+      - name: creditcardfraud-app
+        image: mlopspipelineacr01.azurecr.io/mlops-pipeline:latest
         ports:
         - containerPort: 8501
