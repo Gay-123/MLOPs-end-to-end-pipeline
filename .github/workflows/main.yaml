@@ -27,6 +27,14 @@ jobs:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     # --- Terraform Init & Apply ---
+    - name: Set Azure Credentials for Terraform
+      run: |
+        echo "ARM_CLIENT_ID=${{ secrets.ARM_CLIENT_ID }}" >> $GITHUB_ENV
+        echo "ARM_CLIENT_SECRET=${{ secrets.ARM_CLIENT_SECRET }}" >> $GITHUB_ENV
+        echo "ARM_SUBSCRIPTION_ID=${{ secrets.ARM_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
+        echo "ARM_TENANT_ID=${{ secrets.ARM_TENANT_ID }}" >> $GITHUB_ENV
+ 
+
     - name: Set up Terraform
       uses: hashicorp/setup-terraform@v2
       with:
@@ -35,6 +43,14 @@ jobs:
     - name: Terraform Init
       working-directory: ${{ env.TF_DIR }}
       run: terraform init
+     
+    - name: Terraform Validate
+      working-directory: ${{ env.TF_DIR }}
+      run: terraform validate
+
+    - name: Terraform Plan
+      working-directory: ${{ env.TF_DIR }}
+      run: terraform plan
 
     - name: Terraform Apply
       working-directory: ${{ env.TF_DIR }}
