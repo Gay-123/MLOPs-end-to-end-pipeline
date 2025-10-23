@@ -14,7 +14,7 @@ variable "location" {
 variable "acr_name" {
   description = "Name of Azure Container Registry"
   type        = string
-  default     = "mlopsacr-gayathri01"
+  default     = "mlopsacrgayathripipelineproject"
 }
 
 variable "aks_name" {
