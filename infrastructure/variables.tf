@@ -1,8 +1,7 @@
-# variables.tf
 variable "resource_group_name" {
   description = "Name of the Azure Resource Group"
   type        = string
-  default     = "mlops-rg"
+  default     = "mlopsrggayathri01" 
 }
 
 variable "location" {
@@ -14,13 +13,13 @@ variable "location" {
 variable "acr_name" {
   description = "Name of Azure Container Registry"
   type        = string
-  default     = "mlopsacrgayathripipelineproject"
+  default     = "mlopsacr2025gayathri" 
 }
 
 variable "aks_name" {
   description = "Name of the AKS cluster"
   type        = string
-  default     = "fraud-mlops-aks"
+  default     = "mlopsaksfrauddetect01"  
 }
 
 variable "node_count" {
@@ -38,5 +37,4 @@ variable "vm_size" {
 variable "dns_prefix" {
   description = "DNS prefix for AKS"
   type        = string
-  default     = "mlops"
-}
+  default     = "mlopsdns2025"  
