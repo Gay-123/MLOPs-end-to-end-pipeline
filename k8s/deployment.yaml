@@ -2,6 +2,8 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: creditcardfraud-app
+  labels:
+    app: creditcardfraud-app
 spec:
   replicas: 1
   selector:
@@ -14,8 +16,26 @@ spec:
         prometheus: enabled
     spec:
       containers:
-      - name: creditcardfraud-app
-        image: placeholder-image:latest
-        ports:
-        - containerPort: 8501  
-        - containerPort: 8000  
+        - name: creditcardfraud-app
+          image: mlopsacr2025gayathri.azurecr.io/mlops-pipeline:latest
+          ports:
+            - containerPort: 8501   # Streamlit app
+            - containerPort: 8000   # Prometheus metrics
+          env:
+            - name: STREAMLIT_SERVER_HEADLESS
+              value: "true"
+            - name: STREAMLIT_SERVER_PORT
+              value: "8501"
+          # If using Prometheus Python client, make sure your app starts the metrics server on port 8000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8501
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8501
+            initialDelaySeconds: 30
+            periodSeconds: 30
