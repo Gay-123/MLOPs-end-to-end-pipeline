@@ -11,9 +11,11 @@ spec:
     metadata:
       labels:
         app: creditcardfraud-app
+        prometheus: enabled
     spec:
       containers:
       - name: creditcardfraud-app
-        image: placeholder-image:latest  
+        image: placeholder-image:latest
         ports:
-        - containerPort: 8501
+        - containerPort: 8501  
+        - containerPort: 8000  
