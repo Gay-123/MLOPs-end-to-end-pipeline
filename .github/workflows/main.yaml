@@ -72,12 +72,15 @@ jobs:
         continue-on-error: true
         run: kubectl delete secret acr-auth --namespace=default
 
-      - name: Create imagePullSecret
+      - name: Create imagePullSecret dynamically
         run: |
+          ACR_USERNAME=$(az acr credential show --name ${{ env.ACR_NAME }} --query "username" -o tsv)
+          ACR_PASSWORD=$(az acr credential show --name ${{ env.ACR_NAME }} --query "passwords[0].value" -o tsv)
+
           kubectl create secret docker-registry acr-auth \
-            --docker-server=${{ secrets.ACR_SERVER }} \
-            --docker-username=${{ secrets.ACR_USERNAME }} \
-            --docker-password=${{ secrets.ACR_PASSWORD }} \
+            --docker-server=${{ env.ACR_NAME }}.azurecr.io \
+            --docker-username=$ACR_USERNAME \
+            --docker-password=$ACR_PASSWORD \
             --namespace=default
 
       - name: Update image in K8s manifest
