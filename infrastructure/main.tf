@@ -1,19 +1,14 @@
 provider "azurerm" {
   features {}
-
-  client_id       = var.client_id
-  client_secret   = var.client_secret
-  tenant_id       = var.tenant_id
-  subscription_id = var.subscription_id
 }
 
 resource "azurerm_resource_group" "rg" {
-  name     = var.resource_group_name
-  location = var.location
+  name     = "mlopsrggayathri01"
+  location = "eastasia"
 }
 
 resource "azurerm_container_registry" "acr" {
-  name                = var.acr_name
+  name                = "mlopsacr2025gayathri"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
   sku                 = "Basic"
@@ -21,15 +16,15 @@ resource "azurerm_container_registry" "acr" {
 }
 
 resource "azurerm_kubernetes_cluster" "aks" {
-  name                = var.aks_name
+  name                = "mlopsaksfrauddetect01"
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  dns_prefix          = var.dns_prefix
+  dns_prefix          = "mlopsdns2025"
 
   default_node_pool {
     name       = "default"
-    node_count = var.node_count
-    vm_size    = var.vm_size
+    node_count = 1
+    vm_size    = "Standard_B2s"
   }
 
   identity {
@@ -37,10 +32,4 @@ resource "azurerm_kubernetes_cluster" "aks" {
   }
 
   depends_on = [azurerm_container_registry.acr]
-}
-
-resource "azurerm_role_assignment" "acr_pull" {
-  scope                = azurerm_container_registry.acr.id
-  role_definition_name = "AcrPull"
-  principal_id         = azurerm_kubernetes_cluster.aks.kubelet_identity[0].object_id
 }

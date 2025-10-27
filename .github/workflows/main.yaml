@@ -76,6 +76,20 @@ jobs:
       - name: Get AKS credentials
         run: az aks get-credentials --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.AKS_NAME }} --overwrite-existing
 
+      # Delete existing imagePullSecret (optional cleanup)
+      - name: Delete existing imagePullSecret
+        continue-on-error: true
+        run: kubectl delete secret acr-auth --namespace=default
+
+      # Create imagePullSecret using GitHub Secrets
+      - name: Create imagePullSecret
+        run: |
+          kubectl create secret docker-registry acr-auth \
+            --docker-server=${{ secrets.ACR_SERVER }} \
+            --docker-username=${{ secrets.ACR_USERNAME }} \
+            --docker-password=${{ secrets.ACR_PASSWORD }} \
+            --namespace=default
+
       # Update image in Kubernetes manifest
       - name: Update image in K8s manifest
         run: |
