@@ -17,29 +17,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checkout code
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # --- Azure Login ---
+      # Azure login using service principal
       - name: Login to Azure
         uses: azure/login@v1
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      # --- Terraform Setup ---
+      # Set up Terraform
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v2
         with:
           terraform_version: 1.7.2
-        
-      - name: Export TF_VARs for Terraform
+
+      # Export Terraform variables from secrets
+      - name: Export TF_VARs
         run: |
           echo "TF_VAR_client_id=${{ secrets.ARM_CLIENT_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_client_secret=${{ secrets.ARM_CLIENT_SECRET }}" >> $GITHUB_ENV
           echo "TF_VAR_tenant_id=${{ secrets.ARM_TENANT_ID }}" >> $GITHUB_ENV
           echo "TF_VAR_subscription_id=${{ secrets.ARM_SUBSCRIPTION_ID }}" >> $GITHUB_ENV
 
-
+      # Terraform init/validate/plan/apply
       - name: Terraform Init
         working-directory: ${{ env.TF_DIR }}
         run: terraform init
@@ -56,10 +58,11 @@ jobs:
         working-directory: ${{ env.TF_DIR }}
         run: terraform apply -auto-approve
 
-      # --- ACR Build & Push ---
+      # ACR login
       - name: Azure ACR Login
         run: az acr login --name ${{ env.ACR_NAME }}
 
+      # Docker build and push
       - name: Build Docker Image
         run: docker build -t ${{ env.IMAGE_NAME }} .
 
@@ -69,21 +72,21 @@ jobs:
       - name: Push Docker Image
         run: docker push ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest
 
-      # --- AKS Deployment ---
+      # Get AKS credentials
       - name: Get AKS credentials
         run: az aks get-credentials --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.AKS_NAME }} --overwrite-existing
 
-      - name: Attach ACR to AKS (Fixes ImagePullBackOff)
-        run: az aks update -n ${{ env.AKS_NAME }} -g ${{ env.RESOURCE_GROUP }} --attach-acr ${{ env.ACR_NAME }}
-
+      # Update image in Kubernetes manifest
       - name: Update image in K8s manifest
         run: |
           sed -i "s|image: .*|image: ${{ env.ACR_NAME }}.azurecr.io/${{ env.IMAGE_NAME }}:latest|" k8s/deployment.yaml
 
+      # Deploy to AKS
       - name: Deploy Kubernetes manifests
         run: |
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
 
+      # Verify deployment
       - name: Verify Deployment
         run: kubectl get pods -o wide

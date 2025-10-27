@@ -19,14 +19,13 @@ spec:
         - name: creditcardfraud-app
           image: mlopsacr2025gayathri.azurecr.io/mlops-pipeline:latest
           ports:
-            - containerPort: 8501   # Streamlit app
+            - containerPort: 8501   # Streamlit UI
             - containerPort: 8000   # Prometheus metrics
           env:
             - name: STREAMLIT_SERVER_HEADLESS
               value: "true"
             - name: STREAMLIT_SERVER_PORT
               value: "8501"
-          # If using Prometheus Python client, make sure your app starts the metrics server on port 8000
           readinessProbe:
             httpGet:
               path: /
