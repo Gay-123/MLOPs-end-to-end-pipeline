@@ -17,10 +17,14 @@ fraud_detection_requests_total = Counter(
 
 # 🔹 Start Prometheus metrics server in background
 def start_prometheus_server():
-    app = DispatcherMiddleware(None, {
-        '/metrics': make_wsgi_app()
-    })
-    run_simple("0.0.0.0", 8000, app)
+    try:
+        app = DispatcherMiddleware(None, {
+            '/metrics': make_wsgi_app()
+        })
+        print("✅ Prometheus metrics server started on port 8000")
+        run_simple("0.0.0.0", 8000, app)
+    except Exception as e:
+        print(f"❌ Failed to start Prometheus server: {e}")
 
 threading.Thread(target=start_prometheus_server, daemon=True).start()
 
