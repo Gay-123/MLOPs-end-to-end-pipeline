@@ -1,16 +1,34 @@
-# streamlit_app.py
+# app.py
 import streamlit as st
 import numpy as np
 from tensorflow.keras.models import load_model
 import math
 from datetime import datetime
+from prometheus_client import Counter, make_wsgi_app
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+from werkzeug.serving import run_simple
+import threading
 
-# Load the trained autoencoder model
+# 🔹 Define Prometheus metric
+fraud_detection_requests_total = Counter(
+    'fraud_detection_requests_total',
+    'Total number of fraud detection requests'
+)
+
+# 🔹 Start Prometheus metrics server in background
+def start_prometheus_server():
+    app = DispatcherMiddleware(None, {
+        '/metrics': make_wsgi_app()
+    })
+    run_simple("0.0.0.0", 8000, app)
+
+threading.Thread(target=start_prometheus_server, daemon=True).start()
+
+# 🔹 Load the trained autoencoder model
 model = load_model("model/autoencoder_model.keras")
 
 st.set_page_config(page_title="Fraud Detector", layout="centered")
 st.title("💳 Credit Card Fraud Detection")
-
 st.write("Enter transaction details and click **Check Transaction** to predict fraud status.")
 
 # -------- User inputs --------
@@ -24,7 +42,6 @@ payment_channel = st.selectbox("Payment Channel", ["Online", "Cash/CreditCard", 
 num_features = model.input_shape[1]
 X = np.zeros((1, num_features), dtype=float)
 
-# Heuristic feature setup
 amount_log = math.log1p(float(amount))
 dt = datetime.combine(date_val, time_val)
 hour = dt.hour + dt.minute / 60.0
@@ -55,10 +72,11 @@ def estimate_threshold(_model, dim, n=120, noise_scale=1e-3):
     threshold = mu + 3.0 * sigma
     return mu, sigma, threshold
 
-# -------- Predict only when button clicked --------
+# -------- Prediction logic --------
 if st.button("Check Transaction"):
-    mu_base, sigma_base, threshold = estimate_threshold(model, num_features)
+    fraud_detection_requests_total.inc()  # 🔹 Increment Prometheus counter
 
+    mu_base, sigma_base, threshold = estimate_threshold(model, num_features)
     reconstructed = model.predict(X)
     recon_error = float(np.mean(np.square(X - reconstructed)))
     is_fraud = recon_error > threshold

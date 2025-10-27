@@ -6,3 +6,6 @@ joblib
 imbalanced-learn
 tensorflow
 tensorflow-keras
+prometheus_client
+werkzeug
+
