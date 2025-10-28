@@ -8,6 +8,10 @@ from prometheus_client import Counter, make_wsgi_app
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from werkzeug.serving import run_simple
 import threading
+import logging
+
+# 🔹 Setup logging
+logging.basicConfig(level=logging.INFO)
 
 # 🔹 Define Prometheus metric
 fraud_detection_requests_total = Counter(
@@ -21,11 +25,12 @@ def start_prometheus_server():
         app = DispatcherMiddleware(None, {
             '/metrics': make_wsgi_app()
         })
-        print("✅ Prometheus metrics server started on port 8000")
+        logging.info("✅ Prometheus metrics server started on port 8000")
         run_simple("0.0.0.0", 8000, app)
     except Exception as e:
-        print(f"❌ Failed to start Prometheus server: {e}")
+        logging.error(f"❌ Failed to start Prometheus server: {e}")
 
+logging.info("🔹 Launching Prometheus metrics thread...")
 threading.Thread(target=start_prometheus_server, daemon=True).start()
 
 # 🔹 Load the trained autoencoder model
